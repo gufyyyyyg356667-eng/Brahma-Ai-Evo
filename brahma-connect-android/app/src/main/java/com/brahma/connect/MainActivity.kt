@@ -92,7 +92,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun ensurePhonePermissions() {
-        val missing = listOf(Manifest.permission.SEND_SMS, Manifest.permission.CALL_PHONE)
+        val missing = listOf(Manifest.permission.SEND_SMS, Manifest.permission.CALL_PHONE, Manifest.permission.RECORD_AUDIO)
             .filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) {
             phonePermissions.launch(missing.toTypedArray())

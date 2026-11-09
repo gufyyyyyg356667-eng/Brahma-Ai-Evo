@@ -16,6 +16,10 @@ import com.brahma.connect.device.AndroidDeviceInfoProvider
 import com.brahma.connect.notification.BrahmaNotificationListenerService
 
 class DeviceCommandHandler(private val context: Context) {
+    companion object {
+        private const val SMS_STATUS_TIMEOUT_SECONDS = 20L
+    }
+
     private val infoProvider = AndroidDeviceInfoProvider(context)
 
     fun handle(action: String, parameters: Map<String, Any?>): CommandResult {
@@ -263,13 +267,52 @@ class DeviceCommandHandler(private val context: Context) {
                 @Suppress("DEPRECATION")
                 android.telephony.SmsManager.getDefault()
             }
-            manager.sendTextMessage(number, null, message, null, null)
-            CommandResult(true, data = mapOf("number" to number, "status" to "queued"))
+            val requestId = java.util.UUID.randomUUID().toString()
+            val future = com.brahma.connect.sms.SmsStatusTracker.expect(requestId)
+            val sentIntent = android.app.PendingIntent.getBroadcast(
+                context,
+                requestId.hashCode(),
+                Intent(com.brahma.connect.sms.SmsStatusReceiver.ACTION)
+                    .setPackage(context.packageName)
+                    .putExtra(com.brahma.connect.sms.SmsStatusReceiver.EXTRA_REQUEST_ID, requestId),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            manager.sendTextMessage(number, null, message, sentIntent, null)
+            val code = try {
+                future.get(SMS_STATUS_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+            } catch (timeout: java.util.concurrent.TimeoutException) {
+                com.brahma.connect.sms.SmsStatusTracker.forget(requestId)
+                return CommandResult(
+                    false,
+                    data = mapOf("number" to number, "status" to "unknown"),
+                    errorCode = "UNVERIFIED",
+                    error = "No confirmation from the phone within $SMS_STATUS_TIMEOUT_SECONDS seconds. The SMS may not have been sent.",
+                )
+            }
+            if (code == android.app.Activity.RESULT_OK) {
+                // Sent to the carrier. Delivery to the recipient is not reported by Android here.
+                CommandResult(true, data = mapOf("number" to number, "status" to "sent_to_carrier"))
+            } else {
+                CommandResult(
+                    false,
+                    data = mapOf("number" to number, "status" to "failed"),
+                    errorCode = "SMS_FAILED",
+                    error = describeSmsFailure(code),
+                )
+            }
         } catch (security: SecurityException) {
             CommandResult(false, errorCode = "SMS_FAILED", error = security.message ?: "SMS permission denied.")
         } catch (exc: Exception) {
             CommandResult(false, errorCode = "SMS_FAILED", error = exc.message ?: "Unable to send SMS.")
         }
+    }
+
+    private fun describeSmsFailure(code: Int): String = when (code) {
+        android.telephony.SmsManager.RESULT_ERROR_RADIO_OFF -> "Mobile radio is off."
+        android.telephony.SmsManager.RESULT_ERROR_NO_SERVICE -> "No mobile network service."
+        android.telephony.SmsManager.RESULT_ERROR_LIMIT_EXCEEDED -> "SMS sending limit reached."
+        android.telephony.SmsManager.RESULT_ERROR_NULL_PDU -> "The message could not be encoded."
+        else -> "The SMS could not be sent (code $code)."
     }
 
     private fun makeCall(parameters: Map<String, Any?>): CommandResult {

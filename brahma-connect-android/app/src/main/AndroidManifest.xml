@@ -45,6 +45,10 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
             
+        <receiver
+            android:name=".sms.SmsStatusReceiver"
+            android:exported="false" />
+
         <service
             android:name=".notification.BrahmaNotificationListenerService"
             android:exported="true"

@@ -22,6 +22,10 @@ class MainActivity : ComponentActivity() {
         // The UI will react by showing the scanner if permission is granted.
     }
 
+    private val phonePermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
+        // Results are read on demand by the command handler; nothing to update here.
+    }
+
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             if (pendingServiceStart) {
@@ -51,6 +55,7 @@ class MainActivity : ComponentActivity() {
         }
         maybeStartService()
         ensureCameraPermission()
+        ensurePhonePermissions()
         setContent {
             BrahmaConnectTheme {
                 BrahmaConnectApp(
@@ -83,6 +88,14 @@ class MainActivity : ComponentActivity() {
     private fun ensureCameraPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             cameraPermission.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    private fun ensurePhonePermissions() {
+        val missing = listOf(Manifest.permission.SEND_SMS, Manifest.permission.CALL_PHONE)
+            .filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) {
+            phonePermissions.launch(missing.toTypedArray())
         }
     }
 

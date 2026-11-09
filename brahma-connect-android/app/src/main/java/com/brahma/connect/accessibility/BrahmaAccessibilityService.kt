@@ -24,10 +24,13 @@ class BrahmaAccessibilityService : AccessibilityService() {
         Companion.instance = this
     }
     
+    /**
+     * Not supported: Android does not allow an app to dismiss the lock screen,
+     * and this method never did. It always reports failure so callers are not misled.
+     */
     fun unlockPhone(pin: String): Boolean {
-        // Implementation of unlocking using Accessibility NodeInfo or Gestures
-        AgentStateStore.addLog("Unlocking phone with PIN...")
-        return true
+        AgentStateStore.addLog("Unlock requested, but phone unlock is not supported.")
+        return false
     }
 
     fun dumpUiTree(): Map<String, Any> {

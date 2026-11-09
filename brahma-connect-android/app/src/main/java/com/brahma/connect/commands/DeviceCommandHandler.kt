@@ -209,16 +209,12 @@ class DeviceCommandHandler(private val context: Context) {
         if (pin.isNullOrBlank()) {
             return CommandResult(false, errorCode = "MISSING_PIN", error = "PIN is required to unlock phone.")
         }
-        val service = com.brahma.connect.accessibility.BrahmaAccessibilityService.instance
-        if (service == null) {
-            return CommandResult(false, errorCode = "ACCESSIBILITY_DISABLED", error = "Brahma Accessibility Service is not enabled.")
-        }
-        val success = service.unlockPhone(pin)
-        return if (success) {
-            CommandResult(true, data = mapOf("message" to "Unlock sequence initiated."))
-        } else {
-            CommandResult(false, errorCode = "UNLOCK_FAILED", error = "Failed to initiate unlock sequence.")
-        }
+        // Phone unlock is not supported; report it honestly instead of a fake success.
+        return CommandResult(
+            false,
+            errorCode = "UNSUPPORTED",
+            error = "Phone unlock is not supported. Use a trusted device such as a smartwatch instead.",
+        )
     }
 
     private fun sendSms(parameters: Map<String, Any?>): CommandResult {

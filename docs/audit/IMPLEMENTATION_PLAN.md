@@ -22,7 +22,18 @@ Rule for every step: do not mark a step done unless its test was actually execut
 - Unit test: a `hello` without a valid code creates no pending request.
 - Regression test: the existing pairing test still passes with a valid code.
 
-**Unverified until Step 0 is done.**
+**Status: code-complete, untested.**
+
+What was changed (see commit "Restrict gateway admin routes to local clients"):
+- Every `/gateway/*` administrative route (info, pair, devices, revoke, forget, logs, pending, approve, reject) now returns 403 unless the client is `127.0.0.1`, `::1` or `localhost`. Denials are written to the gateway log as `ADMIN_DENIED`.
+- Desktop code calls the same actions in-process through `brahma_connect/service.py`, not over HTTP, so local use is unaffected. The mobile portal uses only `/ws`.
+- A `hello` that would exceed 5 pending requests is rejected with an error.
+
+Still open after this step:
+- A LAN client can still send `hello` and create a pending request (capped at 5). Approval now requires the desktop user, but the request itself is not tied to a valid pairing code yet.
+- Traffic is still plain HTTP/WebSocket (Step 2).
+
+Not run: `fastapi` is not installed here, so `py_compile` is the only check that passed.
 
 ## Step 2 — Transport encryption (Priority 1, item 3)
 

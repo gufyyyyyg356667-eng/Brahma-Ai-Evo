@@ -21,6 +21,10 @@ class VoiceController(
     private val executor: VoiceCommandExecutor,
 ) {
     private val _state = MutableStateFlow(VoiceState())
+
+    // Commands can block while verifying (for example, waiting for an app to open).
+    // They run here, never on the main thread that delivers speech results.
+    private val worker = java.util.concurrent.Executors.newSingleThreadExecutor()
     val state: StateFlow<VoiceState> = _state.asStateFlow()
 
     fun startListening() {
@@ -40,6 +44,10 @@ class VoiceController(
 
     /** Public so that typed text can use the same path as speech. */
     fun onTranscript(text: String) {
+        worker.execute { processTranscript(text) }
+    }
+
+    private fun processTranscript(text: String) {
         val outcome = executor.handle(text)
         _state.value = when (outcome) {
             is VoiceOutcome.NotUnderstood -> _state.value.copy(
@@ -71,8 +79,11 @@ class VoiceController(
 
     fun confirmPending() {
         val intent = _state.value.pending ?: return
-        val outcome = executor.confirm(intent)
-        _state.value = _state.value.copy(message = describeResult(outcome), pending = null)
+        _state.value = _state.value.copy(message = "Working…", pending = null)
+        worker.execute {
+            val outcome = executor.confirm(intent)
+            _state.value = _state.value.copy(message = describeResult(outcome))
+        }
     }
 
     fun cancelPending() {
@@ -81,6 +92,7 @@ class VoiceController(
 
     fun release() {
         input.release()
+        worker.shutdown()
     }
 
     private fun describeConfirmation(intent: VoiceIntent): String {

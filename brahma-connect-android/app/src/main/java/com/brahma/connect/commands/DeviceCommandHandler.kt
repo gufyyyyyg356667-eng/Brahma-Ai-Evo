@@ -124,10 +124,34 @@ class DeviceCommandHandler(private val context: Context) {
         return try {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
-            CommandResult(true, data = mapOf("package" to packageName, "app_name" to requested))
+            if (waitForForeground(packageName)) {
+                CommandResult(true, data = mapOf("package" to packageName, "app_name" to requested, "verified" to true))
+            } else {
+                CommandResult(
+                    false,
+                    data = mapOf("package" to packageName, "app_name" to requested, "verified" to false),
+                    errorCode = "UNVERIFIED",
+                    error = "Opening $requested was requested, but it could not be confirmed. " +
+                        "Enable Brahma Connect Accessibility to verify app launches.",
+                )
+            }
         } catch (exc: Exception) {
             CommandResult(false, errorCode = "APP_NOT_FOUND", error = exc.message ?: "Unable to launch app.")
         }
+    }
+
+    /**
+     * Polls the active window through the accessibility service for up to ~2 seconds.
+     * Returns false if the service is off or the app never came to the foreground.
+     * Runs on the command thread, never on the UI thread.
+     */
+    private fun waitForForeground(packageName: String): Boolean {
+        val service = com.brahma.connect.accessibility.BrahmaAccessibilityService.instance ?: return false
+        repeat(10) {
+            Thread.sleep(200)
+            if (service.rootInActiveWindow?.packageName?.toString() == packageName) return true
+        }
+        return false
     }
 
     private fun resolveLaunchablePackage(requested: String): String? {
@@ -201,7 +225,13 @@ class DeviceCommandHandler(private val context: Context) {
         val clamped = target.coerceIn(0, 100)
         val level = ((clamped / 100f) * max).toInt().coerceIn(0, max)
         audio.setStreamVolume(AudioManager.STREAM_MUSIC, level, 0)
-        return CommandResult(true, data = mapOf("stream" to "music", "percentage" to clamped, "current" to level, "max" to max))
+        val actual = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val data = mapOf("stream" to "music", "percentage" to clamped, "current" to actual, "max" to max)
+        return if (actual == level) {
+            CommandResult(true, data = data)
+        } else {
+            CommandResult(false, data = data, errorCode = "UNVERIFIED", error = "Volume did not change as requested.")
+        }
     }
 
     private fun unlockPhone(parameters: Map<String, Any?>): CommandResult {
@@ -234,7 +264,7 @@ class DeviceCommandHandler(private val context: Context) {
                 android.telephony.SmsManager.getDefault()
             }
             manager.sendTextMessage(number, null, message, null, null)
-            CommandResult(true, data = mapOf("number" to number, "status" to "sent"))
+            CommandResult(true, data = mapOf("number" to number, "status" to "queued"))
         } catch (security: SecurityException) {
             CommandResult(false, errorCode = "SMS_FAILED", error = security.message ?: "SMS permission denied.")
         } catch (exc: Exception) {
@@ -253,7 +283,7 @@ class DeviceCommandHandler(private val context: Context) {
         return try {
             val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$number")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
-            CommandResult(true, data = mapOf("number" to number, "status" to "calling"))
+            CommandResult(true, data = mapOf("number" to number, "status" to "dialing"))
         } catch (security: SecurityException) {
             CommandResult(false, errorCode = "CALL_FAILED", error = security.message ?: "Call permission denied.")
         } catch (exc: Exception) {

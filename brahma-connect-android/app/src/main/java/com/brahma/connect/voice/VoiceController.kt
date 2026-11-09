@@ -48,6 +48,12 @@ class VoiceController(
                 message = "I did not understand: \"$text\"",
                 pending = null,
             )
+            is VoiceOutcome.Failed -> _state.value.copy(
+                listening = false,
+                lastHeard = text,
+                message = outcome.message,
+                pending = null,
+            )
             is VoiceOutcome.NeedsConfirmation -> _state.value.copy(
                 listening = false,
                 lastHeard = text,
@@ -77,10 +83,13 @@ class VoiceController(
         input.release()
     }
 
-    private fun describeConfirmation(intent: VoiceIntent): String = when (intent.action) {
-        "send_sms" -> "Send SMS to ${intent.parameters["number"]}? Tap Confirm to send."
-        "make_call" -> "Call ${intent.parameters["number"]}? Tap Confirm to call."
-        else -> "Confirm ${intent.action}?"
+    private fun describeConfirmation(intent: VoiceIntent): String {
+        val who = intent.parameters["contact_name"]?.toString() ?: intent.parameters["number"]?.toString()
+        return when (intent.action) {
+            "send_sms" -> "Send SMS to $who? Tap Confirm to send."
+            "make_call" -> "Call $who? Tap Confirm to call."
+            else -> "Confirm ${intent.action}?"
+        }
     }
 
     private fun describeResult(outcome: VoiceOutcome): String = when (outcome) {
@@ -90,6 +99,7 @@ class VoiceController(
             "Failed: ${outcome.result.error ?: outcome.result.errorCode ?: "unknown error"}"
         }
         is VoiceOutcome.NeedsConfirmation -> describeConfirmation(outcome.intent)
+        is VoiceOutcome.Failed -> outcome.message
         is VoiceOutcome.NotUnderstood -> "I did not understand that."
     }
 }

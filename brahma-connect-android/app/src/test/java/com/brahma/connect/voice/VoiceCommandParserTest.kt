@@ -72,4 +72,27 @@ class VoiceCommandParserTest {
         assertNull(VoiceCommandParser.parse(""))
         assertNull(VoiceCommandParser.parse("   "))
     }
+
+    @Test
+    fun callByContactNameIsResolvedLater() {
+        val intent = VoiceCommandParser.parse("call rahim")
+        assertEquals("make_call", intent?.action)
+        assertEquals("rahim", intent?.parameters?.get("contact"))
+        assertTrue(intent!!.sensitive)
+    }
+
+    @Test
+    fun callByContactNameBengali() {
+        val intent = VoiceCommandParser.parse("রহিমকে কল করো")
+        assertEquals("make_call", intent?.action)
+        assertEquals("রহিম", intent?.parameters?.get("contact"))
+    }
+
+    @Test
+    fun smsByContactNameEnglish() {
+        val intent = VoiceCommandParser.parse("send sms to rahim saying see you soon")
+        assertEquals("send_sms", intent?.action)
+        assertEquals("rahim", intent?.parameters?.get("contact"))
+        assertEquals("see you soon", intent?.parameters?.get("message"))
+    }
 }

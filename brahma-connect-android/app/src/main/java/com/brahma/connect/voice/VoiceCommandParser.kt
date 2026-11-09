@@ -3,6 +3,7 @@ package com.brahma.connect.voice
 /**
  * A recognized spoken command, mapped to a DeviceCommandHandler action.
  * `sensitive` actions must be confirmed by the user before they run.
+ * A `contact` parameter means the name still has to be resolved to a number.
  */
 data class VoiceIntent(
     val action: String,
@@ -20,10 +21,14 @@ object VoiceCommandParser {
     private const val NUMBER = """\+?\d{6,15}"""
 
     private val smsEn = Regex("""^(?:send|text)\s+(?:an?\s+)?(?:sms|message)\s+to\s+($NUMBER)\s*(?:saying|that|:)?\s*(.+)$""")
+    private val smsEnName = Regex("""^(?:send|text)\s+(?:an?\s+)?(?:sms|message)\s+to\s+(.+?)\s+(?:saying|that|:)\s*(.+)$""")
     private val smsBn = Regex("""^($NUMBER)\s*(?:নম্বরে|নাম্বারে)?\s*(?:মেসেজ|এসএমএস|message|sms)\s*(?:পাঠাও|পাঠান|পাঠা)\s*[:।-]?\s*(.+)$""")
+    private val smsBnName = Regex("""^(.+?)\s*কে\s*(?:মেসেজ|এসএমএস)\s*(?:পাঠাও|পাঠা)\s*[:।-]?\s*(.+)$""")
 
     private val callEn = Regex("""^call\s+($NUMBER)$""")
     private val callBn = Regex("""^($NUMBER)\s*(?:-তে|তে|কে)?\s*কল\s*(?:করো|কর|দাও)?$""")
+    private val callEnName = Regex("""^call\s+(.+)$""")
+    private val callBnName = Regex("""^(.+?)\s*কে\s*কল\s*(?:করো|কর|দাও)$""")
 
     private val openEn = Regex("""^open\s+(.+)$""")
     private val openBn = Regex("""^(.+?)\s*(?:খোলো|খোল|চালু করো)$""")
@@ -38,8 +43,14 @@ object VoiceCommandParser {
         smsEn.matchEntire(text)?.let { m ->
             return VoiceIntent("send_sms", mapOf("number" to m.groupValues[1], "message" to m.groupValues[2]), sensitive = true)
         }
+        smsEnName.matchEntire(text)?.let { m ->
+            return VoiceIntent("send_sms", mapOf("contact" to m.groupValues[1].trim(), "message" to m.groupValues[2]), sensitive = true)
+        }
         smsBn.matchEntire(text)?.let { m ->
             return VoiceIntent("send_sms", mapOf("number" to m.groupValues[1], "message" to m.groupValues[2]), sensitive = true)
+        }
+        smsBnName.matchEntire(text)?.let { m ->
+            return VoiceIntent("send_sms", mapOf("contact" to m.groupValues[1].trim(), "message" to m.groupValues[2]), sensitive = true)
         }
 
         callEn.matchEntire(text)?.let { m ->
@@ -47,6 +58,12 @@ object VoiceCommandParser {
         }
         callBn.matchEntire(text)?.let { m ->
             return VoiceIntent("make_call", mapOf("number" to m.groupValues[1]), sensitive = true)
+        }
+        callEnName.matchEntire(text)?.let { m ->
+            return VoiceIntent("make_call", mapOf("contact" to m.groupValues[1].trim()), sensitive = true)
+        }
+        callBnName.matchEntire(text)?.let { m ->
+            return VoiceIntent("make_call", mapOf("contact" to m.groupValues[1].trim()), sensitive = true)
         }
 
         volumeEn.matchEntire(text)?.let { m ->

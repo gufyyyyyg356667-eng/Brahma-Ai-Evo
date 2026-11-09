@@ -291,7 +291,8 @@ fun BrahmaConnectApp(
                     com.brahma.connect.voice.VoiceController(
                         input = com.brahma.connect.voice.VoiceInput(context),
                         executor = com.brahma.connect.voice.VoiceCommandExecutor(
-                            com.brahma.connect.commands.DeviceCommandHandler(context)
+                            com.brahma.connect.commands.DeviceCommandHandler(context),
+                            com.brahma.connect.voice.AndroidContactLookup(context),
                         ),
                     )
                 }

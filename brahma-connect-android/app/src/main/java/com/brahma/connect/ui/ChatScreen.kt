@@ -34,7 +34,8 @@ import java.util.Locale
 @Composable
 fun ChatScreen(
     onBack: () -> Unit,
-    onSendMessage: (String) -> Unit
+    onSendMessage: (String) -> Unit,
+    voicePanel: (@Composable () -> Unit)? = null,
 ) {
     val chatHistory by AgentStateStore.chatHistory.collectAsState()
     val listState = rememberLazyListState()
@@ -90,6 +91,8 @@ fun ChatScreen(
                     ChatMessageBubble(message = message)
                 }
             }
+
+            voicePanel?.invoke()
 
             // Input Area
             Row(

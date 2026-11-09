@@ -287,6 +287,29 @@ fun BrahmaConnectApp(
                 }
             }
             composable("chat") {
+                val voiceController = remember {
+                    com.brahma.connect.voice.VoiceController(
+                        input = com.brahma.connect.voice.VoiceInput(context),
+                        executor = com.brahma.connect.voice.VoiceCommandExecutor(
+                            com.brahma.connect.commands.DeviceCommandHandler(context)
+                        ),
+                    )
+                }
+                DisposableEffect(voiceController) {
+                    onDispose { voiceController.release() }
+                }
+                var micGranted by remember {
+                    mutableStateOf(
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                            android.content.pm.PackageManager.PERMISSION_GRANTED
+                    )
+                }
+                val micLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+                ) { granted ->
+                    micGranted = granted
+                    if (granted) voiceController.startListening()
+                }
                 ChatScreen(
                     onBack = { navController.popBackStack() },
                     onSendMessage = { text ->
@@ -295,7 +318,14 @@ fun BrahmaConnectApp(
                             putExtra(BrahmaConnectForegroundService.EXTRA_CHAT_TEXT, text)
                         }
                         context.startService(intent)
-                    }
+                    },
+                    voicePanel = {
+                        com.brahma.connect.voice.VoiceCommandPanel(
+                            controller = voiceController,
+                            hasMicPermission = micGranted,
+                            onRequestMicPermission = { micLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                        )
+                    },
                 )
             }
         }

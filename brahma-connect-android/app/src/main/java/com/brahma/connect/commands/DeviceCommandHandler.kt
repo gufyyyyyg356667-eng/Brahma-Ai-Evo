@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.brahma.connect.core.BrahmaConnectCapabilities
 import com.brahma.connect.core.CommandResult
 import com.brahma.connect.device.AndroidDeviceInfoProvider
+import com.brahma.connect.notification.BrahmaNotificationListenerService
 
 class DeviceCommandHandler(private val context: Context) {
     private val infoProvider = AndroidDeviceInfoProvider(context)
@@ -36,6 +37,9 @@ class DeviceCommandHandler(private val context: Context) {
             "ui_tap" -> uiTap(parameters)
             "ui_swipe" -> uiSwipe(parameters)
             "ui_type" -> uiType(parameters)
+            "send_sms" -> sendSms(parameters)
+            "make_call" -> makeCall(parameters)
+            "notification_list" -> notificationList(parameters)
             else -> CommandResult(false, errorCode = "UNKNOWN_COMMAND", error = "Unsupported command: $action")
         }
     }
@@ -215,6 +219,74 @@ class DeviceCommandHandler(private val context: Context) {
         } else {
             CommandResult(false, errorCode = "UNLOCK_FAILED", error = "Failed to initiate unlock sequence.")
         }
+    }
+
+    private fun sendSms(parameters: Map<String, Any?>): CommandResult {
+        val number = cleanPhoneNumber(parameters["number"] ?: parameters["to"])
+        val message = (parameters["message"] ?: parameters["text"])?.toString()?.trim().orEmpty()
+        if (number.isBlank() || message.isBlank()) {
+            return CommandResult(false, errorCode = "INVALID_ARGUMENT", error = "number and message are required.")
+        }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return CommandResult(false, errorCode = "SMS_PERMISSION_REQUIRED", error = "SMS permission is not granted on the phone.")
+        }
+        return try {
+            val manager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.getSystemService(android.telephony.SmsManager::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                android.telephony.SmsManager.getDefault()
+            }
+            manager.sendTextMessage(number, null, message, null, null)
+            CommandResult(true, data = mapOf("number" to number, "status" to "sent"))
+        } catch (security: SecurityException) {
+            CommandResult(false, errorCode = "SMS_FAILED", error = security.message ?: "SMS permission denied.")
+        } catch (exc: Exception) {
+            CommandResult(false, errorCode = "SMS_FAILED", error = exc.message ?: "Unable to send SMS.")
+        }
+    }
+
+    private fun makeCall(parameters: Map<String, Any?>): CommandResult {
+        val number = cleanPhoneNumber(parameters["number"] ?: parameters["to"])
+        if (number.isBlank()) {
+            return CommandResult(false, errorCode = "INVALID_ARGUMENT", error = "number is required.")
+        }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return CommandResult(false, errorCode = "CALL_PERMISSION_REQUIRED", error = "Phone call permission is not granted on the phone.")
+        }
+        return try {
+            val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$number")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            CommandResult(true, data = mapOf("number" to number, "status" to "calling"))
+        } catch (security: SecurityException) {
+            CommandResult(false, errorCode = "CALL_FAILED", error = security.message ?: "Call permission denied.")
+        } catch (exc: Exception) {
+            CommandResult(false, errorCode = "CALL_FAILED", error = exc.message ?: "Unable to place call.")
+        }
+    }
+
+    private fun notificationList(parameters: Map<String, Any?>): CommandResult {
+        if (!BrahmaNotificationListenerService.isConnected()) {
+            return CommandResult(
+                false,
+                errorCode = "NOTIFICATION_ACCESS_REQUIRED",
+                error = "Enable notification access for Brahma Connect in Android settings.",
+            )
+        }
+        val limit = (parameters["limit"]?.toString()?.toIntOrNull() ?: 20).coerceIn(1, 50)
+        val items = BrahmaNotificationListenerService.recent(limit).map { entry ->
+            mapOf(
+                "package" to entry.packageName,
+                "title" to entry.title,
+                "text" to entry.text,
+                "time" to entry.postTime,
+            )
+        }
+        return CommandResult(true, data = mapOf("notifications" to items, "count" to items.size))
+    }
+
+    private fun cleanPhoneNumber(raw: Any?): String {
+        return raw?.toString().orEmpty().filter { it.isDigit() || it == '+' }
     }
 
     private fun resolveFileTarget(path: String?): java.io.File {

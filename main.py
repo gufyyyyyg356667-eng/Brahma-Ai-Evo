@@ -1204,7 +1204,7 @@ TOOL_DECLARATIONS = [
             "Routes a Brahma Connect command to a paired device through the gateway. "
             "Use for actions such as launch_app, open_url, get_battery, capture_screen, take_photo, "
             "clipboard_get, clipboard_set, send_file, receive_file, media_play, media_pause, volume_set, "
-            "notification_list, get_device_info, close_app, mouse_move, keyboard_type, unlock_phone, file_list, file_read, file_write, file_delete."
+            "notification_list, send_sms, make_call, get_device_info, close_app, mouse_move, keyboard_type, unlock_phone, file_list, file_read, file_write, file_delete."
             "Do not execute device operations directly anywhere else."
         ),
         "parameters": {

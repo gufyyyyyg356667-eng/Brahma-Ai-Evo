@@ -27,7 +27,7 @@ class VoiceCommandParserTest {
     fun opensAppIgnoresFillerAndAppWord() {
         assertEquals("youtube", VoiceCommandParser.parse("please open youtube")?.parameters?.get("app_name"))
         assertEquals("youtube", VoiceCommandParser.parse("youtube app kholo")?.parameters?.get("app_name"))
-        assertEquals("youtube", VoiceCommandParser.parse("ইউটিউব অ্যাপ খোলো")?.parameters?.get("app_name"))
+        assertEquals("ইউটিউব", VoiceCommandParser.parse("ইউটিউব অ্যাপ খোলো")?.parameters?.get("app_name"))
     }
 
     @Test

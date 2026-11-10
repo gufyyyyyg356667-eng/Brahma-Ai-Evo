@@ -119,7 +119,7 @@ class DeviceCommandHandler(private val context: Context) {
             return CommandResult(false, errorCode = "INVALID_ARGUMENT", error = "App name or package name is required.")
         }
 
-        val packageName = resolveLaunchablePackage(requested)
+        val packageName = resolveLaunchablePackage(aliasFor(requested))
             ?: requested.takeIf { context.packageManager.getLaunchIntentForPackage(it) != null }
             ?: return CommandResult(false, errorCode = "APP_NOT_FOUND", error = "Package not found: $requested")
 
@@ -189,8 +189,41 @@ class DeviceCommandHandler(private val context: Context) {
         return containsMatch?.activityInfo?.packageName
     }
 
+    /**
+     * Spoken Bengali or Banglish names mapped to the English name an installed app is usually labelled with.
+     * Anything not listed here is still matched against the installed apps by its own name.
+     */
+    private val appAliases = mapOf(
+        "ইউটিউব" to "youtube",
+        "ফেসবুক" to "facebook",
+        "হোয়াটসঅ্যাপ" to "whatsapp",
+        "ইনস্টাগ্রাম" to "instagram",
+        "টেলিগ্রাম" to "telegram",
+        "স্পটিফাই" to "spotify",
+        "ক্রোম" to "chrome",
+        "ক্যামেরা" to "camera",
+        "ক্যালকুলেটর" to "calculator",
+        "ক্যালেন্ডার" to "calendar",
+        "গ্যালারি" to "gallery",
+        "ফটো" to "photos",
+        "মেসেজ" to "messages",
+        "সেটিংস" to "settings",
+        "ম্যাপ" to "maps",
+        "গুগল ম্যাপ" to "maps",
+        "ক্লক" to "clock",
+        "ফাইল" to "files",
+        "ফাইলস" to "files",
+        "প্লে স্টোর" to "play store",
+    )
+
+    private fun aliasFor(requested: String): String {
+        val key = requested.trim().lowercase()
+        return appAliases[key] ?: appAliases.entries.firstOrNull { key.contains(it.key) }?.value ?: requested
+    }
+
     private fun normalizeAppQuery(value: String): String {
-        return value.lowercase().replace(Regex("[^a-z0-9]+"), "")
+        // Keep letters, combining marks (Bengali vowel signs) and digits from any script.
+        return value.lowercase().replace(Regex("[^\\p{L}\\p{M}\\p{N}]+"), "")
     }
 
     private fun openUrl(parameters: Map<String, Any?>): CommandResult {

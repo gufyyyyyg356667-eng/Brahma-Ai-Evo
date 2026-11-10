@@ -24,6 +24,13 @@ class VoiceCommandParserTest {
     }
 
     @Test
+    fun opensAppIgnoresFillerAndAppWord() {
+        assertEquals("youtube", VoiceCommandParser.parse("please open youtube")?.parameters?.get("app_name"))
+        assertEquals("youtube", VoiceCommandParser.parse("youtube app kholo")?.parameters?.get("app_name"))
+        assertEquals("youtube", VoiceCommandParser.parse("ইউটিউব অ্যাপ খোলো")?.parameters?.get("app_name"))
+    }
+
+    @Test
     fun setsVolume() {
         val intent = VoiceCommandParser.parse("volume 40%")
         assertEquals("volume_set", intent?.action)
@@ -38,9 +45,23 @@ class VoiceCommandParserTest {
     }
 
     @Test
+    fun setsVolumeWithBengaliDigits() {
+        assertEquals(50, VoiceCommandParser.parse("ভলিউম ৫০")?.parameters?.get("value"))
+    }
+
+    @Test
     fun flashlightOnAndOff() {
         assertEquals("flashlight_on", VoiceCommandParser.parse("flashlight on")?.action)
         assertEquals("flashlight_off", VoiceCommandParser.parse("torch off")?.action)
+        assertEquals("flashlight_on", VoiceCommandParser.parse("flash on koro")?.action)
+        assertEquals("flashlight_off", VoiceCommandParser.parse("টর্চ বন্ধ করো")?.action)
+    }
+
+    @Test
+    fun batteryAndNotifications() {
+        assertEquals("get_battery", VoiceCommandParser.parse("battery koto")?.action)
+        assertEquals("get_battery", VoiceCommandParser.parse("ব্যাটারি কত")?.action)
+        assertEquals("notification_list", VoiceCommandParser.parse("notifications")?.action)
     }
 
     @Test
@@ -67,6 +88,19 @@ class VoiceCommandParserTest {
     }
 
     @Test
+    fun callNumberWithSpacesFromSpeech() {
+        val intent = VoiceCommandParser.parse("call 017 1234 5678")
+        assertEquals("make_call", intent?.action)
+        assertEquals("01712345678", intent?.parameters?.get("number"))
+    }
+
+    @Test
+    fun callBengaliDigitsAndPunctuation() {
+        val intent = VoiceCommandParser.parse("০১৭১২৩৪৫৬৭৮ তে কল করো।")
+        assertEquals("01712345678", intent?.parameters?.get("number"))
+    }
+
+    @Test
     fun unknownTextReturnsNull() {
         assertNull(VoiceCommandParser.parse("tell me a joke"))
         assertNull(VoiceCommandParser.parse(""))
@@ -89,10 +123,26 @@ class VoiceCommandParserTest {
     }
 
     @Test
+    fun callByContactNameBanglish() {
+        assertEquals("rahim", VoiceCommandParser.parse("rahim ke call koro")?.parameters?.get("contact"))
+        assertEquals("rahim", VoiceCommandParser.parse("call koro rahim")?.parameters?.get("contact"))
+        assertEquals("rahim", VoiceCommandParser.parse("call rahim koro")?.parameters?.get("contact"))
+    }
+
+    @Test
     fun smsByContactNameEnglish() {
         val intent = VoiceCommandParser.parse("send sms to rahim saying see you soon")
         assertEquals("send_sms", intent?.action)
         assertEquals("rahim", intent?.parameters?.get("contact"))
         assertEquals("see you soon", intent?.parameters?.get("message"))
+    }
+
+    @Test
+    fun smsByContactNameBanglish() {
+        val intent = VoiceCommandParser.parse("rahim ke message pathao hi there")
+        assertEquals("send_sms", intent?.action)
+        assertEquals("rahim", intent?.parameters?.get("contact"))
+        assertEquals("hi there", intent?.parameters?.get("message"))
+        assertTrue(intent!!.sensitive)
     }
 }

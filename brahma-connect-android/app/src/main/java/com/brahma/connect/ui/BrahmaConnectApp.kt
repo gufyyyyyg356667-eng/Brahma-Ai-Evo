@@ -142,7 +142,7 @@ fun BrahmaConnectApp(
     val startDest = when {
         setupMissing.isNotEmpty() -> "permissions"
         credential != null -> "home"
-        else -> "welcome"
+        else -> "phone"
     }
 
     LaunchedEffect(credential) {
@@ -174,9 +174,29 @@ fun BrahmaConnectApp(
                     onRequestNotificationPermission = onRequestNotificationPermission,
                     onContinue = { 
                         if (credential != null) navController.navigate("home") { popUpTo(0) }
-                        else navController.navigate("welcome") { popUpTo(0) }
+                        else navController.navigate("phone") { popUpTo(0) }
                     }
                 )
+            }
+            composable("phone") {
+                // Standalone phone mode: voice control works here without any PC.
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("Brahma", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(8.dp))
+                    Text("ফোনেই voice কমান্ড চলবে। PC লাগবে না।", color = MaterialTheme.colorScheme.onBackground)
+                    Spacer(Modifier.height(24.dp))
+                    Button(onClick = { navController.navigate("chat") }, modifier = Modifier.fillMaxWidth()) {
+                        Text("🎤 Voice শুরু করো")
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(onClick = { navController.navigate("welcome") }, modifier = Modifier.fillMaxWidth()) {
+                        Text("PC-র সাথে জোড়া লাগাও (ঐচ্ছিক)")
+                    }
+                }
             }
             composable("welcome") {
                 WelcomeScreen(
